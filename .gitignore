@@ -1,0 +1,9 @@
+.env
+node_modules
+dist
+.next
+coverage
+
+# Sub-repos managed independently
+lms-backend/
+lms-frontend/
