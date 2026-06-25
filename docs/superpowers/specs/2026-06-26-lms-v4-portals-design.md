@@ -51,6 +51,21 @@ The leads module already derives a borrower's `stage` (REGISTERED → DETAILS_SU
 
 No backend change needed beyond what exists: `GET /auth/me` already returns `role.code` and `permissions`. The frontend uses `role.code` (BORROWER vs ops) to route. (Confirm `me` includes `role.code`; it does.)
 
+### 1.4 Document preview / download (salary slip)
+
+Ops and the owning borrower must be able to **preview and download** a loan's salary-slip document.
+- Add `GET /api/v1/loans/:id/document` — gated `loan:read:all` (ops) — returns a **presigned GET URL** (browser-reachable, via the existing `s3Public` client in `storage.ts`) plus `filename`/`mime` for the loan's `salarySlip`. 404 if the loan or slip is absent.
+- Add `GET /api/v1/borrower/loans/:id/document` — borrower-only, ownership-gated (else 404) — same presigned-GET response for the borrower's own loan.
+- Reuse the existing presign machinery (the upload side already presigns; add a `getDownloadUrl(objectKey)` helper using `s3Public`). The URL is short-lived; the frontend opens it for preview (PDF/image inline) and download.
+
+### 1.5 Borrower loan detail with payments (repayment tracking data)
+
+Extend `GET /api/v1/borrower/loans/:id` (`getOwnLoan`, ownership-gated) to return `{ loan, payments }` — the borrower's loan plus its **payments sorted ascending by `paidAt`** (amounts in rupees at the edge), so the borrower portal can render the read-only collections table and live outstanding. (Mirror the ops `getLoan` shape, minus internal actor PII if desired — borrower may see collector name or just "Collections team"; default to showing the entry without the staff member's personal identity.) Keep `GET /borrower/loans` (list) shape unchanged.
+
+### 1.6 Partial payments (already supported — confirm)
+
+`recordPayment` already accepts partial amounts (`amount ≤ outstanding`), reduces `outstanding`, appends a `statusHistory`/payment record, and **auto-closes** the loan when `outstanding === 0`. No model change. v4 only adds the borrower-visible read surface (1.5) and the document endpoints (1.4). Each payment row's **Status** is derived: `RECEIVED` normally, and the entry that drives `outstanding → 0` is shown as `SETTLED` (loan CLOSED). Running balance (outstanding after each entry) is a derived display column.
+
 ---
 
 ## PART 2 (Phase 2) — Borrower Portal
@@ -80,6 +95,12 @@ Route group `(borrower)` (rename/repurpose the current `(marketing)` + `(portal)
 ### 2.6 Logout
 - Visible **logout** control in the borrower top bar → clears session → returns to landing.
 
+### 2.7 Repayment tracking (read-only) on a disbursed loan
+- On a `DISBURSED` loan's detail (in My Loans), the borrower sees **live repayment status**: principal, total repayable, **amount paid**, **outstanding**, tenure — updating as the collection team records entries (data from 1.5; the view re-fetches/revalidates).
+- A read-only **collections table** of entries the collection team made, columns: **S.No · Date of Collection · UTR · Amount · Status** (`RECEIVED`/`SETTLED`) · **Running balance** (outstanding after that entry). Borrower cannot add/edit — they only view.
+- When the final entry clears the balance, the loan shows **CLOSED / Fully Paid**.
+- Borrower can also **preview/download their own document** (1.4 borrower endpoint) from the loan detail.
+
 ## PART 3 (Phase 3) — Operations Portal
 
 Route group `(ops)` (repurpose `(dashboard)`). Ops roles only; a borrower who lands here is redirected to the borrower portal.
@@ -91,19 +112,21 @@ Route group `(ops)` (repurpose `(dashboard)`). Ops roles only; a borrower who la
 ### 3.2 Remove the Welcome page
 - Delete the `/dashboard` welcome blurb. After login, an ops user lands on a **useful default** — the **Overview** (admin/metrics:read) if permitted, else their primary work queue (Sales→leads, Sanction→sanction queue, etc.). Routing picks the first section the user's permissions allow.
 
-### 3.3 Role-scoped sections (work queues)
-Each is a filtered view over the loan lifecycle:
+### 3.3 Role-scoped sections (work queues) — every row opens a loan-detail workspace
+
+Each queue is a filtered table over the loan lifecycle; **clicking a row opens the loan-detail workspace** (3.4) where the work is actually done — full audit trail, documents (preview + download), terms, and the **section-appropriate action in context**. Actions are available **both at table-row level and inside the detail**.
 - **Sales** (`lead:read`) — leads with the funnel stages from 1.2; filter by stage (registered-not-applied, slip-uploaded-not-applied = drop-offs); mark-contacted stays.
-- **Sanction** (`loan:sanction`) — `APPLIED` loans; approve / reject (+ now **cancel** via admin path if applicable).
-- **Disbursement** (`loan:disburse`) — `SANCTIONED` loans; disburse.
-- **Collection** (`payment:create`) — `DISBURSED` loans; record payments.
+- **Sanction** (`loan:sanction`) — `APPLIED` loans → detail shows documents + audit + terms → **Approve / Reject** (reject needs a reason). Decision is made from the document/detail view, not blind from the table.
+- **Disbursement** (`loan:disburse`) — `SANCTIONED` loans → detail → **Disburse**.
+- **Collection** (`payment:create`) — `DISBURSED` loans → table shows outstanding/tenure-remaining; detail shows the **collections list**, outstanding, tenure remaining, and a **Record Collection** button (present **at both table-row level and in the detail**) → opens a form (UTR, amount ≤ outstanding, date of collection, optional note) → records the payment → outstanding/borrower view update live; auto-close at zero.
 - **Products** (`product:manage`) — publish/manage offerings (existing admin products screen; add the new `category` field to the form).
 - **Roles** (`rbac:read`) — as-is.
 - **Overview** (`metrics:read`) — existing dashboard.
-- **Loans** (`loan:read:all`) — existing filterable list + loan detail with **audit trail** (already built; ensure CANCELLED renders).
+- **Loans** (`loan:read:all`) — existing filterable list + loan detail (already built; ensure CANCELLED renders).
 
-### 3.4 Audit trail
-- Every loan detail (ops side) shows the full **audit trail**: each event with timestamp, actor, action, reason — already implemented in v3's loan-detail timeline; extend to include the CANCEL event and ensure it is reachable from every ops queue (row → detail).
+### 3.4 Loan-detail workspace + documents + audit trail
+- Reachable by row-click from every queue. Renders: borrower + product + terms, the **document(s)** (salary slip) with **inline preview and download** (1.4 presigned URL), the full **audit trail** (each event: timestamp, actor, action, reason — v3 timeline, extended to include CANCEL), and the section action (approve/reject, disburse, record-collection) gated by the viewer's permission.
+- The same workspace is used across Sanction/Disbursement/Collection; the action panel varies by permission/loan state. A loan in the "wrong" state for a section shows the detail read-only (no action button).
 
 ---
 
@@ -118,14 +141,14 @@ Each is a filtered view over the loan lifecycle:
 - Cancel from an illegal state → 409 (state machine). Cancel someone else's loan (borrower path) → 404. Cancel after disbursement → 409. All via existing `AppError` subclasses.
 
 ## Testing
-- **Backend:** CANCEL transition (allowed APPLIED/SANCTIONED, illegal DISBURSED/CLOSED/REJECTED/CANCELLED), ownership 404, re-apply allowed after cancel, metrics denominator excludes CANCELLED, byStatus includes CANCELLED; leads stage derivation + filter; product `category` round-trip. Full suite stays green.
-- **Frontend:** role-based login redirect (borrower vs ops); borrower portal blocks ops users and vice-versa; landing carousel (max 5 + see-more); catalog card → detail; product detail live calculator + guarded apply; my-loans cancel flow (enabled APPLIED/SANCTIONED, disabled DISBURSED); collapsible sidebar (expand/collapse, icons-only); no Welcome page; no "LMS Ops" string; Sales stage filter; audit trail shows CANCEL.
-- **Live E2E:** ops login → operations console (collapsible nav, queues, audit trail); borrower login → landing carousel → product detail → guarded apply → track → cancel before disbursement; role cross-access blocked.
+- **Backend:** CANCEL transition (allowed APPLIED/SANCTIONED, illegal DISBURSED/CLOSED/REJECTED/CANCELLED), ownership 404, re-apply allowed after cancel, metrics denominator excludes CANCELLED, byStatus includes CANCELLED; leads stage derivation + filter; product `category` round-trip; **document presign-download** endpoints (ops + borrower ownership 404); **borrower loan detail returns `{loan, payments}`** sorted with derived status/running-balance fields available; partial-payment sequence reduces outstanding and auto-closes. Full suite stays green.
+- **Frontend:** role-based login redirect (borrower vs ops); borrower portal blocks ops users and vice-versa; landing carousel (max 5 + see-more); catalog card → detail; product detail live calculator + guarded apply; my-loans cancel flow (enabled APPLIED/SANCTIONED, disabled DISBURSED); **borrower repayment view** (outstanding + read-only collections table S.No/Date/UTR/Amount/Status/Running-balance, live update after a recorded payment); **document preview/download** opens the presigned URL; collapsible sidebar (expand/collapse, icons-only); no Welcome page; no "LMS Ops" string; Sales stage filter; **row-click opens loan-detail workspace** with documents + audit trail; **Record Collection** from both table-row and detail; sanction approve/reject and disburse from the detail workspace; audit trail shows CANCEL.
+- **Live E2E:** ops login → operations console (collapsible nav; row-click detail with document preview/download; approve→disburse→record partial collections→full → CLOSED; audit trail); borrower login → landing carousel → product detail → guarded apply → track → **watch collections appear + outstanding drop live** → cancel a different loan before disbursement; role cross-access blocked.
 
 ## Build Order
-1. **Phase 1 — Backend** (cancel + state machine, leads stages/filter, product category, metrics denominator). 
-2. **Phase 2 — Borrower portal** (route group, landing carousel, catalog, product detail + live calc, guarded apply, my-loans + cancel, logout).
-3. **Phase 3 — Operations portal** (collapsible sidebar, remove welcome/branding, role-scoped default routing, Sales stage filter UI, products category field, audit-trail reachability, CANCELLED rendering).
+1. **Phase 1 — Backend** (cancel + state machine, leads stages/filter, product category, metrics denominator, document presign-download endpoints, borrower loan-detail `{loan,payments}`).
+2. **Phase 2 — Borrower portal** (route group, landing carousel, catalog, product detail + live calc, guarded apply, my-loans + cancel, **repayment view + collections table + document preview/download**, logout).
+3. **Phase 3 — Operations portal** (collapsible sidebar, remove welcome/branding, role-scoped default routing, **row-click loan-detail workspace with document preview/download + in-context approve/reject/disburse/record-collection from table & detail**, Sales stage filter UI, products category field, audit-trail reachability incl. CANCEL, CANCELLED rendering).
 4. **Live E2E** + report.
 
 Each phase: subagent-driven implement → review → fix → green, then the next.
