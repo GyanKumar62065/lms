@@ -51,7 +51,7 @@ git clone <frontend-repo-url> lms-frontend
 cp .env.example .env        # edit secrets if desired
 docker compose up --build
 
-# Frontend:      http://localhost:3000
+# Frontend:      http://localhost:3100
 # API:           http://localhost:4000/api/v1
 # MinIO console: http://localhost:9001  (minioadmin / minioadmin)
 ```

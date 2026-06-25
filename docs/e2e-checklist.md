@@ -8,13 +8,13 @@ Each step must pass before proceeding to the next.
 ## Prerequisites
 
 - Stack is up: `docker compose ps` shows `backend` and `frontend` running, `seed` exited 0.
-- Browser pointed at `http://localhost:3000`.
+- Browser pointed at `http://localhost:3100`.
 
 ---
 
 ## Steps
 
-1. Open `http://localhost:3000` → redirected to `/login`.
+1. Open `http://localhost:3100` → redirected to `/login`.
 
 2. Sign up a new borrower (e.g. `demo+1@x.com` / `Passw0rd!`) → lands on `/apply`.
 
@@ -40,7 +40,7 @@ Each step must pass before proceeding to the next.
 10. Log back in as the borrower → `/my-loans` shows the loan `CLOSED`, outstanding ₹0, both payments listed.
 
 11. **RBAC checks:**
-    - As the borrower, visit `http://localhost:3000/sanction` → redirected to `/forbidden`.
+    - As the borrower, visit `http://localhost:3100/sanction` → redirected to `/forbidden`.
     - As `sales@lms.test`, the sidebar shows only Sales; hitting `/collection` redirects to `/forbidden`.
     - With no session, hitting `/api/v1/loans` directly returns `401`; as Sales it returns `403`.
     - Log in as `admin@lms.test` / `Admin@123` → all modules visible; `/admin/roles` lists every role's permissions.
