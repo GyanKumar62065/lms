@@ -63,6 +63,7 @@ services:
       context: ./lms-frontend
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        BACKEND_ORIGIN: ${BACKEND_ORIGIN}
     environment:
       API_URL_INTERNAL: ${API_URL_INTERNAL}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
