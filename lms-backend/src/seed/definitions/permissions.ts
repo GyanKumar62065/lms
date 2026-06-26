@@ -1,0 +1,15 @@
+export const PERMISSIONS = [
+  { code: 'lead:read', description: 'View sales leads', module: 'sales' },
+  { code: 'loan:read:all', description: 'View all loans', module: 'loans' },
+  { code: 'loan:sanction', description: 'Sanction/reject loans', module: 'sanction' },
+  { code: 'loan:disburse', description: 'Disburse loans', module: 'disbursement' },
+  { code: 'payment:create', description: 'Record payments', module: 'collection' },
+  { code: 'payment:read', description: 'View payments', module: 'collection' },
+  { code: 'loan:apply', description: 'Apply for a loan', module: 'borrower' },
+  { code: 'loan:read:own', description: 'View own loans', module: 'borrower' },
+  { code: 'rbac:read', description: 'View roles and permissions', module: 'admin' },
+  { code: 'product:read', description: 'View loan products (incl. inactive)', module: 'products' },
+  { code: 'product:manage', description: 'Create/edit/activate loan products', module: 'products' },
+  { code: 'metrics:read', description: 'View admin dashboard metrics', module: 'admin' },
+  { code: 'loan:cancel', description: 'Cancel a loan before disbursement', module: 'cancel' },
+] as const;

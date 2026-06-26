@@ -1,9 +1,16 @@
-.env
-node_modules
-dist
-.next
-coverage
+# dependencies / build output
+node_modules/
+dist/
+.next/
+build/
+coverage/
+*.tsbuildinfo
 
-# Sub-repos managed independently
-lms-backend/
-lms-frontend/
+# secrets / local env
+.env
+*.env.local
+
+# tooling scratch (subagent-driven-dev ledgers, agent files, OS)
+.superpowers/
+.claude/
+.DS_Store

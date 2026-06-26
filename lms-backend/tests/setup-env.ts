@@ -1,0 +1,10 @@
+process.env.MONGO_URI ||= 'mongodb://localhost:27017/lms-test';
+process.env.JWT_ACCESS_SECRET ||= 'a'.repeat(32);
+process.env.JWT_REFRESH_SECRET ||= 'b'.repeat(32);
+process.env.PASSWORD_PEPPER ||= 'test-pepper';
+process.env.MINIO_ENDPOINT ||= 'http://localhost:9000';
+process.env.MINIO_ACCESS_KEY ||= 'minio';
+process.env.MINIO_SECRET_KEY ||= 'minio123';
+process.env.MINIO_BUCKET ||= 'salary-slips';
+process.env.CORS_ORIGIN ||= 'http://localhost:3000';
+process.env.NODE_ENV = 'test';

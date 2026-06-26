@@ -1,0 +1,23 @@
+// src/components/dashboard/charts/recovery-timeseries.tsx
+'use client';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ChartContainer } from './chart-container';
+import { chartColor } from './chart-colors';
+import { AdminMetrics } from '@/types/api';
+
+export function RecoveryTimeSeries({ data }: { data: AdminMetrics['timeSeries'] }) {
+  return (
+    <ChartContainer title="Disbursed vs recovered (monthly)" testId="chart-timeseries">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data}>
+          <XAxis dataKey="month" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Bar dataKey="disbursed" name="Disbursed" fill={chartColor(0)} radius={4} />
+          <Bar dataKey="recovered" name="Recovered" fill={chartColor(1)} radius={4} />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartContainer>
+  );
+}

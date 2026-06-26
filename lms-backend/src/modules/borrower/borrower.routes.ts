@@ -1,0 +1,20 @@
+import { Router } from 'express';
+import { asyncHandler } from '../../middleware/async-handler';
+import { authenticate } from '../../middleware/authenticate';
+import { authorize } from '../../middleware/authorize';
+import { validate } from '../../middleware/validate';
+import { profileDto, presignDto, confirmSlipDto, applyDto } from './borrower.dto';
+import { cancelDto } from '../loans/loans.dto';
+import * as c from './borrower.controller';
+
+export const borrowerRouter = Router();
+borrowerRouter.use(authenticate);
+borrowerRouter.get('/profile', authorize('loan:apply'), asyncHandler(c.getProfile));
+borrowerRouter.put('/profile', authorize('loan:apply'), validate({ body: profileDto }), asyncHandler(c.putProfile));
+borrowerRouter.post('/salary-slip/presign', authorize('loan:apply'), validate({ body: presignDto }), asyncHandler(c.presignSlip));
+borrowerRouter.put('/salary-slip', authorize('loan:apply'), validate({ body: confirmSlipDto }), asyncHandler(c.stageSlip));
+borrowerRouter.post('/loans', authorize('loan:apply'), validate({ body: applyDto }), asyncHandler(c.apply));
+borrowerRouter.get('/loans', authorize('loan:read:own'), asyncHandler(c.listLoans));
+borrowerRouter.get('/loans/:id', authorize('loan:read:own'), asyncHandler(c.getLoan));
+borrowerRouter.get('/loans/:id/document', authorize('loan:read:own'), asyncHandler(c.document));
+borrowerRouter.post('/loans/:id/cancel', authorize('loan:cancel'), validate({ body: cancelDto }), asyncHandler(c.cancelLoan));
