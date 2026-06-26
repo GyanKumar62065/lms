@@ -161,23 +161,21 @@ JWT auth with **httpOnly cookies**: a short-lived access token (15m) + a rotatin
 ```mermaid
 sequenceDiagram
     participant B as Browser
-    participant F as Next.js (:3100 proxy)
-    participant A as API (:4000)
+    participant F as Frontend Proxy
+    participant A as API
     participant D as MongoDB
 
-    B->>F: POST /api/v1/auth/login
-    F->>A: proxy → login
-    A->>D: verify creds; set user.sessionId = sid; revoke other refresh tokens
-    A-->>F: 200 {role, permissions} + Set-Cookie access+refresh (sid)
-    F-->>B: first-party cookies on :3100
-    Note over B: form routes by role → opsHome() or /
-
-    B->>F: GET protected page (cookie sent)
-    F->>A: SSR getSession → /auth/me
-    A->>D: verify access token; check token.sid == user.sessionId
-    A-->>F: 200 session (or 401 if superseded/expired)
-
-    Note over B,A: On 401, the client transparently calls /auth/refresh once.<br/>If refresh fails (expired OR superseded by a new login),<br/>the browser is redirected to /login.
+    B->>F: POST auth login
+    F->>A: proxy to login
+    A->>D: verify creds, set new sessionId, revoke other sessions
+    A-->>F: 200 with role and permissions, set access and refresh cookies
+    F-->>B: first-party cookies on the app origin
+    Note over B: form routes by role to opsHome or borrower home
+    B->>F: GET protected page with cookie
+    F->>A: SSR getSession calls auth me
+    A->>D: verify access token, check sid equals user sessionId
+    A-->>F: 200 session, or 401 if superseded or expired
+    Note over B,A: On 401 the client calls auth refresh once. If that fails the browser is sent to login.
 ```
 
 - The credential/refresh endpoints are rate-limited (50 / 15 min); `/auth/me` and `/auth/captcha` are **not** (they're hit on every page).
@@ -257,16 +255,16 @@ sequenceDiagram
     participant API as API
     participant S3 as MinIO
 
-    U->>FE: browse /products → /products/[code] (live calc)
-    U->>FE: Apply (guarded — login/register if anonymous)
-    FE->>API: PUT /borrower/profile (BRE: age, salary, PAN, employment)
-    API-->>FE: eligibility pass/fail (per product)
+    U->>FE: browse products and open a product detail with live calc
+    U->>FE: click Apply, guarded by login or register if anonymous
+    FE->>API: PUT borrower profile, runs BRE on age salary PAN employment
+    API-->>FE: eligibility pass or fail per product
     FE->>API: presign salary slip
-    API-->>FE: presigned PUT URL
-    U->>S3: upload slip (browser → :9000)
-    FE->>API: stage slip → POST /borrower/loans {productCode, principal, tenure}
-    API-->>FE: 201 loan (APPLIED, terms snapshot)
-    Note over U,API: track in /my-loans · cancel before disbursement · watch collections live
+    API-->>FE: presigned PUT url
+    U->>S3: upload slip from the browser
+    FE->>API: stage slip then POST borrower loans
+    API-->>FE: 201 loan APPLIED with term snapshot
+    Note over U,API: track in my-loans, cancel before disbursement, watch collections live
 ```
 
 ---
