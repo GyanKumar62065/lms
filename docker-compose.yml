@@ -66,6 +66,7 @@ services:
     environment:
       API_URL_INTERNAL: ${API_URL_INTERNAL}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      BACKEND_ORIGIN: ${BACKEND_ORIGIN}
     depends_on:
       backend:
         condition: service_started
