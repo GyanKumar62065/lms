@@ -4,10 +4,13 @@ services:
     command: ["--replSet", "rs0", "--bind_ip_all"]
     volumes: ["mongo-data:/data/db"]
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "try{rs.status().ok}catch(e){rs.initiate();0}"]
+      # Initiate the single-node replica set bound to the STABLE service name `mongo:27017`
+      # (not the ephemeral container hostname) so it survives `docker compose down`/`up`.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try{rs.status().ok}catch(e){rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]});0}"]
       interval: 10s
       timeout: 10s
-      retries: 15
+      retries: 30
+      start_period: 30s
     networks: [lms]
 
   minio:
