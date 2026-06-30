@@ -8,7 +8,9 @@ const nextConfig: NextConfig = {
   // FIRST-PARTY to the app origin — eliminating the cross-origin/SameSite cookie failures that
   // logged users out. SSR still calls the backend directly via API_URL_INTERNAL.
   async rewrites() {
-    const backend = process.env.BACKEND_ORIGIN ?? 'http://localhost:4000';
+    // Accept a full origin OR a bare host (Render's `fromService` host value) and normalise.
+    let backend = process.env.BACKEND_ORIGIN ?? 'http://localhost:4000';
+    if (!/^https?:\/\//.test(backend)) backend = `https://${backend}`;
     return [{ source: '/api/:path*', destination: `${backend}/api/:path*` }];
   },
 };

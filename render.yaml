@@ -1,0 +1,83 @@
+# Render Blueprint — deploys the LMS as two FREE web services.
+#
+# Bring-your-own (also free), set as `sync: false` secrets in the Render dashboard:
+#   • MongoDB        → MongoDB Atlas M0 (a real replica set, so transactions work)
+#   • Object storage → Cloudflare R2 (S3-compatible; used for salary-slip documents)
+#
+# Render passes each service's env vars to its Docker build as build args, so the frontend
+# bakes BACKEND_ORIGIN / NEXT_PUBLIC_API_URL at build time. See DEPLOY.md for the full guide.
+
+services:
+  # ───────────────────────── Backend — Express API ─────────────────────────
+  - type: web
+    name: lms-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: lms-backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SEED_ON_BOOT          # idempotent seed runs on startup (roles, users, products)
+        value: "true"
+      - key: TRUST_PROXY           # behind Render's TLS-terminating proxy
+        value: "true"
+      - key: COOKIE_SECURE         # HTTPS → secure cookies
+        value: "true"
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 7d
+      - key: JWT_ACCESS_SECRET     # Render generates a strong value (≥32 chars)
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: PASSWORD_PEPPER
+        generateValue: true
+      - key: MINIO_REGION          # Cloudflare R2 uses "auto"
+        value: auto
+      - key: MINIO_BUCKET          # must match the R2 bucket you create
+        value: lms-docs
+      - key: CORS_ORIGIN           # auto-resolved to the frontend's host
+        fromService:
+          type: web
+          name: lms-frontend
+          property: host
+      # ── secrets — set these in the Render dashboard (Environment tab) ──
+      - key: MONGO_URI             # Atlas SRV string ending in /lms?retryWrites=true&w=majority
+        sync: false
+      - key: MINIO_ENDPOINT        # https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+        sync: false
+      - key: MINIO_PUBLIC_ENDPOINT # same R2 endpoint (used to sign browser-reachable URLs)
+        sync: false
+      - key: MINIO_ACCESS_KEY      # R2 Access Key ID
+        sync: false
+      - key: MINIO_SECRET_KEY      # R2 Secret Access Key
+        sync: false
+
+  # ───────────────────────── Frontend — Next.js ─────────────────────────
+  - type: web
+    name: lms-frontend
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: lms-frontend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOSTNAME             # Next standalone server binds all interfaces
+        value: 0.0.0.0
+      - key: NEXT_PUBLIC_API_URL  # browser uses a same-origin relative base → Next proxies /api/*
+        value: /api/v1
+      - key: BACKEND_ORIGIN       # auto-resolved to the backend's host; used by the proxy + SSR
+        fromService:
+          type: web
+          name: lms-backend
+          property: host

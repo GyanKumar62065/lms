@@ -6,8 +6,13 @@ export class ApiError extends Error {
 
 function baseUrl(serverBase?: string): string {
   if (serverBase) return serverBase;
-  // server-side falls back to internal URL; browser uses public URL
-  if (typeof window === 'undefined') return process.env.API_URL_INTERNAL ?? process.env.NEXT_PUBLIC_API_URL!;
+  // Browser: same-origin relative base (e.g. /api/v1) → goes through the Next proxy.
+  if (typeof window !== 'undefined') return process.env.NEXT_PUBLIC_API_URL!;
+  // Server (SSR): call the backend directly. Prefer an explicit internal URL; otherwise
+  // derive it from BACKEND_ORIGIN (which may be a full origin or a bare host, e.g. on Render).
+  if (process.env.API_URL_INTERNAL) return process.env.API_URL_INTERNAL;
+  const bo = process.env.BACKEND_ORIGIN;
+  if (bo) return `${/^https?:\/\//.test(bo) ? bo : `https://${bo}`}/api/v1`;
   return process.env.NEXT_PUBLIC_API_URL!;
 }
 

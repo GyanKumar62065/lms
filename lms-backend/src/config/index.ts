@@ -62,7 +62,8 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
       forcePathStyle: true,
     },
     trustProxy: e.TRUST_PROXY,
-    corsOrigin: e.CORS_ORIGIN,
+    // Accept a bare host (e.g. Render's `fromService` host value) and normalise to an origin.
+    corsOrigin: /^https?:\/\//.test(e.CORS_ORIGIN) ? e.CORS_ORIGIN : `https://${e.CORS_ORIGIN}`,
     cookie: { secure: e.COOKIE_SECURE, sameSite: 'strict' as const, domain: e.COOKIE_DOMAIN },
   };
 }

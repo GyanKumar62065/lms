@@ -2,9 +2,17 @@ import { createApp } from './app';
 import { connectDb, disconnectDb } from './db/connect';
 import { config } from './config';
 import { logger } from './lib/logger';
+import { runSeed } from './seed/seed';
 
 async function main() {
   await connectDb();
+  // Optional boot-time seed for platforms (e.g. Render) without a separate one-off job.
+  // The seed is idempotent (upsert-by-code), so it's safe to run on every start.
+  if (process.env.SEED_ON_BOOT === 'true') {
+    logger.info('SEED_ON_BOOT=true — running idempotent seed');
+    await runSeed();
+    logger.info('seed complete');
+  }
   const app = createApp();
   const server = app.listen(config.port, () => logger.info(`API on :${config.port}`));
 
