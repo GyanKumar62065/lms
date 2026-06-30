@@ -42,11 +42,11 @@ services:
         value: auto
       - key: MINIO_BUCKET          # must match the R2 bucket you create
         value: lms-docs
-      - key: CORS_ORIGIN           # auto-resolved to the frontend's host
-        fromService:
-          type: web
-          name: lms-frontend
-          property: host
+      # NOTE: fromService `property: host` returns the INTERNAL service name (e.g. `lms-frontend`),
+      # which free web services can't resolve over DNS. So we pin the full public URLs instead.
+      # Update these to match the *.onrender.com URLs Render assigns your services.
+      - key: CORS_ORIGIN           # public URL of the frontend
+        value: https://lms-frontend-xw89.onrender.com
       # ── secrets — set these in the Render dashboard (Environment tab) ──
       - key: MONGO_URI             # Atlas SRV string ending in /lms?retryWrites=true&w=majority
         sync: false
@@ -76,8 +76,5 @@ services:
         value: 0.0.0.0
       - key: NEXT_PUBLIC_API_URL  # browser uses a same-origin relative base → Next proxies /api/*
         value: /api/v1
-      - key: BACKEND_ORIGIN       # auto-resolved to the backend's host; used by the proxy + SSR
-        fromService:
-          type: web
-          name: lms-backend
-          property: host
+      - key: BACKEND_ORIGIN       # public URL of the backend (baked into the Next proxy at build);
+        value: https://lms-backend-tzzz.onrender.com   # must be the full *.onrender.com, not the internal name
