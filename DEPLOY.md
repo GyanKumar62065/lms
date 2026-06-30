@@ -14,6 +14,24 @@ The blueprint is [`render.yaml`](render.yaml). It wires the two services to each
 automatically (`fromService`) and generates the JWT/pepper secrets for you; you only paste in
 the Atlas and R2 values.
 
+### One-click deploy
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/GyanKumar62065/lms)
+
+## What's automated vs. what you set up
+
+| Automated (in this repo) | You do once (your accounts/secrets) |
+|---|---|
+| Both Render services defined (`render.yaml`) | Create the Render / Atlas / Cloudflare accounts |
+| Cross-service URL wiring (`fromService`) | Paste 5 backend secrets in Render (step 4) |
+| JWT secrets + pepper (auto-generated) | Create the Atlas cluster + DB user (step 1) |
+| DB seeding on boot (`SEED_ON_BOOT`) | Create the R2 bucket + API token + CORS (step 2) |
+| Auto-deploy on `git push` (`autoDeploy`) | Set 2 repo Variables for keep-alive (optional) |
+| Keep-alive pings ([GitHub Action](.github/workflows/keep-alive.yml)) | — |
+
+I can't create your cloud accounts or hold your secrets — those four secret values
+(Atlas URI + R2 keys) are yours to generate. Everything else is wired up for you.
+
 > **Heads-up:** free Render services **spin down after ~15 min idle** and cold-start in ~30–60s.
 > Fine for a demo; see *Keeping it awake* at the end.
 
@@ -103,14 +121,19 @@ Next.js proxies those to the backend (`BACKEND_ORIGIN`, baked at build). Cookies
 - **Mongo connection errors** → verify Atlas Network Access allows `0.0.0.0/0` and the SRV
   password/db name are correct.
 
-## Keeping it awake (optional)
+## Keeping it awake (automated)
 
-Free services sleep after 15 min. To keep the demo warm, ping the health endpoint every ~10 min
-from a free scheduler (e.g. [cron-job.org](https://cron-job.org), [UptimeRobot](https://uptimerobot.com)):
-```
-https://lms-backend.onrender.com/healthz
-```
-(Pinging the backend keeps it warm; the frontend wakes on the first real visit.)
+Free services sleep after 15 min idle. The repo ships a **GitHub Action**
+([`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml)) that pings both services
+every 10 minutes. To turn it on, set two **repo Variables** (not secrets — these aren't sensitive):
+
+- GitHub repo → **Settings → Secrets and variables → Actions → Variables → New variable**
+  - `BACKEND_URL` = `https://lms-backend.onrender.com` (your real backend URL)
+  - `FRONTEND_URL` = `https://lms-frontend.onrender.com` (your real frontend URL)
+
+That's it — the workflow runs on schedule (and you can trigger it manually from the **Actions** tab).
+If the variables are unset it safely no-ops. *(Note: GitHub disables scheduled workflows after 60
+days of repo inactivity — push anything to re-enable.)*
 
 ## Costs
 

@@ -1,0 +1,32 @@
+name: keep-alive
+
+# Pings the deployed services so Render's free tier doesn't spin them down (15 min idle).
+# Set two repo Variables (Settings → Secrets and variables → Actions → Variables):
+#   BACKEND_URL   e.g. https://lms-backend.onrender.com
+#   FRONTEND_URL  e.g. https://lms-frontend.onrender.com
+# If the variables are unset, the job no-ops (safe).
+
+on:
+  schedule:
+    - cron: "*/10 * * * *" # every 10 minutes (Render sleeps after 15)
+  workflow_dispatch: {} # allow manual "Run workflow"
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health + frontend
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+          FRONTEND_URL: ${{ vars.FRONTEND_URL }}
+        run: |
+          set +e
+          ping() {
+            [ -z "$1" ] && { echo "skip (unset)"; return; }
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 "$1")
+            echo "$1 -> $code"
+          }
+          ping "${BACKEND_URL%/}/healthz"
+          ping "${FRONTEND_URL%/}"
+          # never fail the workflow on a cold-start timeout
+          exit 0

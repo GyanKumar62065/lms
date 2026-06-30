@@ -9,6 +9,10 @@ RBAC is enforced on **both** sides — server-side route guards in the frontend 
 
 > Built incrementally across four iterations (v1 core → v2 landing/registration/analytics → v3 loan products + admin dashboard → v4 portal separation, cancel, document preview, single-session auth). Per-iteration design specs and live-verification reports live in [`docs/`](docs/).
 
+**Deploy free on Render** (frontend + backend + MongoDB Atlas + Cloudflare R2) — see [`DEPLOY.md`](DEPLOY.md):
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/GyanKumar62065/lms)
+
 ---
 
 ## High-level architecture
