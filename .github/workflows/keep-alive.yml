@@ -2,14 +2,21 @@ name: keep-alive
 
 # Pings the deployed services so Render's free tier doesn't spin them down (15 min idle).
 # Set two repo Variables (Settings → Secrets and variables → Actions → Variables):
-#   BACKEND_URL   e.g. https://lms-backend.onrender.com
-#   FRONTEND_URL  e.g. https://lms-frontend.onrender.com
+#   BACKEND_URL   e.g. https://lms-backend-tzzz.onrender.com
+#   FRONTEND_URL  e.g. https://lms-frontend-xw89.onrender.com
 # If the variables are unset, the job no-ops (safe).
+#
+# BUDGET: Render free gives ~750 instance-hours/month across free services. Keeping BOTH
+# services awake 24/7 would need ~1460 hrs/month and get suspended mid-month. So we only keep
+# them warm during an active-hours window: every 5 min, 03:00–18:59 UTC (≈ 08:30–00:29 IST).
+# That's ~2 × 16h × 8 days ≈ 256 instance-hours for a demo week — comfortably under budget.
+# Outside the window the services sleep and cold-start (~50s) on the first request.
+# After the demo, disable this workflow (Actions tab → keep-alive → ••• → Disable workflow).
 
 on:
   schedule:
-    - cron: "*/10 * * * *" # every 10 minutes (Render sleeps after 15)
-  workflow_dispatch: {} # allow manual "Run workflow"
+    - cron: "*/5 3-18 * * *" # every 5 min during 03:00–18:59 UTC (≈ 08:30–00:29 IST)
+  workflow_dispatch: {} # allow manual "Run workflow" any time
 
 jobs:
   ping:
